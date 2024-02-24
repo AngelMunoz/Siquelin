@@ -19,7 +19,11 @@ let main argv =
     // set the main handler to do nothing
     setHandler id
 
-  // add a subcommand to list shifts
+    // add a subcommand to list shifts
+
+    addCommand(Commands.logDay env)
+    addCommand(Commands.logItem env)
+    addCommand(Commands.listItemsForDay env)
 
 #if DEBUG
     // only allow this command in debug mode as it is meant for dev purposes
