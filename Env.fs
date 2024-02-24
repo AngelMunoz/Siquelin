@@ -9,6 +9,7 @@ open Migrondi.Core
 
 open Siquelin.Types.Env
 open Siquelin.Migrations
+open System.Data
 
 let private loggerFactory =
   lazy
@@ -55,10 +56,30 @@ let private getEnvLocations () =
 let getEnv () : Types.Env.AppEnv =
   let logger = loggerFactory.Value.CreateLogger("Siquelin")
   let locations = getEnvLocations()
-  let migrondi = Runner.getMigrondi locations MigrondiConfig.Default
+
+  // create the database directory if it doesn't exist
+  // to avoid exceptions when trying to create the database file
+  Path.GetDirectoryName locations.databasePath
+  |> Directory.CreateDirectory
+  |> ignore
+
+  let config = {
+    MigrondiConfig.Default with
+        connection = $"Data Source={locations.databasePath};"
+  }
+
+  let migrondi = Runner.getMigrondi locations.appDirectory config
+
+  let getConnection () : IDbConnection =
+    new Microsoft.Data.Sqlite.SqliteConnection(config.connection)
+
+  let workdays = Database.Workday.factory getConnection
+  let shiftItems = Database.ShiftItem.factory getConnection
 
   {
     locations = locations
     logger = logger
     migrondi = migrondi
+    workdays = workdays
+    shiftItems = shiftItems
   }
