@@ -1,26 +1,10 @@
 namespace Siquelin.Migrations
 
 module Runner =
-  open System.IO
   open Migrondi.Core
   open Microsoft.Extensions.Logging
-  open Siquelin.Types.Env
 
-  let internal getMigrondi paths config =
-    let {
-          databasePath = dbPath
-          appDirectory = rootDir
-        } =
-      paths
-
-    // create the database directory if it doesn't exist
-    // to avoid exceptions when trying to create the database file
-    Path.GetDirectoryName dbPath |> Directory.CreateDirectory |> ignore
-
-    let config = {
-      config with
-          connection = $"Data Source={dbPath};"
-    }
+  let internal getMigrondi rootDir config =
 
     let migrondi = Migrondi.MigrondiFactory(config, rootDir)
     migrondi.Initialize()
