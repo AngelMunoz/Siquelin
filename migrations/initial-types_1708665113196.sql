@@ -6,7 +6,7 @@
 
 create table work_days(
     id integer primary key autoincrement,
-    date text not null
+    date text not null,
     unique(date)
 );
 
