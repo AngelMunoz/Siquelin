@@ -16,7 +16,7 @@ Options:
   -?, -h, --help  Show help and usage information
 
 Commands:
-  log <day>              Start a new work day
-  item <start> <finish>  Add a new shift item
-  list-items <day>       List shift items for a day []
+  log <day>                      Start a new work day
+  item <start> <finish> <label>  Add a new shift item
+  list-items <day>               List shift items for a day []
 ```
