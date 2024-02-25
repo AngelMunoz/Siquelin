@@ -36,29 +36,28 @@ module Parsing =
       let value = dayParser(token.Value)
       value |> Result.toOption
 
-
 module Handlers =
   open Siquelin.Types.Env
   open Microsoft.Extensions.Logging
 
-  let logDay (logger: ILogger, workdays: WorkdayService) (day: DateOnly) =
+  let logDay
+    (logger: ILogger, workdays: WorkdayService)
+    (day: DateOnly, label: string option)
+    =
     logger.LogInformation(
       "Logging a new work day: {day}",
       day.ToLongDateString()
     )
 
-    workdays.create day
+    workdays.create(day, ?label = label)
 
   let logItem
     (logger: ILogger, workDays: WorkdayService, shiftItems: ShiftItemService)
-    (start: TimeOnly, finish: TimeOnly, day: DateOnly option)
+    (start: TimeOnly, finish: TimeOnly, label: string, day: DateOnly option)
     =
     let day = defaultArg day (DateOnly.FromDateTime(DateTime.Today))
 
-    logger.LogInformation(
-      "Logging a new item for: {day}",
-      day.ToLongDateString()
-    )
+    logger.LogInformation("Logging an item for: {day}", day.ToLongDateString())
 
     match workDays.exists day with
     | true -> logger.LogDebug("Work day '{day}' found", day.ToLongDateString())
@@ -71,7 +70,7 @@ module Handlers =
       workDays.create day
 
 
-    match shiftItems.create(day, start, finish) with
+    match shiftItems.upsert(day, label, start, finish) with
     | Ok() -> 0
     | Error e ->
       logger.LogError("Failed to create shift item: {error}", e)
@@ -93,7 +92,8 @@ module Handlers =
       items
       |> List.iter(fun item ->
         logger.LogInformation(
-          "Shift item: {start} - {finish}",
+          "Shift item: '{item}': {start} - {finish}",
+          item.name,
           item.start,
           item.finish
         )
@@ -113,25 +113,31 @@ module Commands =
         "The day to log, in the format of 'yyyy-MM-dd'"
       )
 
-    let cmd = command "log" {
+    let label =
+      Input.OptionMaybe<string>(
+        [ "-l"; "--label" ],
+        "The label of the work day"
+      )
+
+    command "log" {
       description "Start a new work day"
 
-      inputs(argument)
+      inputs(argument, label)
 
       setHandler(
-        (fun day ->
+        (fun (day, label) ->
           match Parsing.dayParser day with
-          | Ok day -> day
+          | Ok day -> day, label
           | Error e -> failwith e
         )
         >> Handlers.logDay(env.logger, env.workdays)
       )
     }
 
-    cmd
-
   let logItem (env: Env.AppEnv) =
     let start = Input.Argument<TimeOnly>("start", "The start time of the shift")
+
+    let label = Input.Argument<string>("label", "The label of the shift item")
 
     let finish =
       Input.Argument<TimeOnly>("finish", "The finish time of the shift")
@@ -144,15 +150,14 @@ module Commands =
       )
       |> Input.OfOption
 
-    let cmd = command "item" {
+    command "item" {
       description "Add a new shift item"
 
-      inputs(start, finish, day)
+      inputs(start, finish, label, day)
 
       setHandler(Handlers.logItem(env.logger, env.workdays, env.shiftItems))
     }
 
-    cmd
 
   let listItemsForDay (env: Env.AppEnv) =
     let day =
@@ -161,7 +166,7 @@ module Commands =
         "The day to log, in the format of 'yyyy-MM-dd'"
       )
 
-    let cmd = command "list-items" {
+    command "list-items" {
       description "List shift items for a day"
 
       inputs day
@@ -179,7 +184,6 @@ module Commands =
       )
     }
 
-    cmd
 
   module Hidden =
     open Siquelin.Migrations
