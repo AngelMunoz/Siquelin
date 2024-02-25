@@ -2,11 +2,16 @@ namespace Siquelin.Types
 
 open System
 
-type WorkDay = { id: int; date: DateOnly }
+type WorkDay = {
+  id: int
+  date: DateOnly
+  name: string option
+}
 
 type ShiftItem = {
   id: int
   workDayId: int
+  name: string
   start: TimeOnly
   finish: TimeOnly
 }
@@ -25,14 +30,18 @@ module Env =
   type ShiftItemQueryError = | WorkDayNotFound
 
   type WorkdayService =
-    abstract member create: DateOnly -> unit
+    abstract member create: targetDate: DateOnly * ?label: string -> unit
     abstract member list: unit -> WorkDay list
     abstract member get: DateOnly -> WorkDay option
     abstract member exists: DateOnly -> bool
 
   type ShiftItemService =
-    abstract member create:
-      DateOnly * TimeOnly * TimeOnly -> Result<unit, ShiftItemQueryError>
+    abstract member upsert:
+      targetDate: DateOnly *
+      label: string *
+      startTime: TimeOnly *
+      endTime: TimeOnly ->
+        Result<unit, ShiftItemQueryError>
 
     abstract member list:
       DateOnly -> Result<ShiftItem list, ShiftItemQueryError>
